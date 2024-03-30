@@ -133,7 +133,22 @@ void getCompleteCommand(char*** argvv, int num_command) {
 		argv_execvp[i] = argvv[num_command][i];
 }
 
+void executeCommand(char ***argvv, int num_command){
+    //First lets do simple commands
+    int pid, status;
+    pid = fork();
+    switch(pid){
+        case -1:
+            perror("Error in fork");
+            break;
+        case 0:
+            execvp(argvv[0][0], argvv[0]);
+            exit(0);
+        default:
+            wait(NULL);
+    }
 
+}
 /**
  * Main sheell  Loop  
  */
@@ -173,37 +188,39 @@ int main(int argc, char* argv[])
 		signal(SIGINT, siginthandler);
 
 		if (run_history)
-    {
-        run_history=0;
-    }
-    else{
-        // Prompt 
-        write(STDERR_FILENO, "MSH>>", strlen("MSH>>"));
-
-        // Get command
-        //********** DO NOT MODIFY THIS PART. IT DISTINGUISH BETWEEN NORMAL/CORRECTION MODE***************
-        executed_cmd_lines++;
-        if( end != 0 && executed_cmd_lines < end) {
-            command_counter = read_command_correction(&argvv, filev, &in_background, cmd_lines[executed_cmd_lines]);
+        {
+            run_history=0;
         }
-        else if( end != 0 && executed_cmd_lines == end)
-            return 0;
-        else
-            command_counter = read_command(&argvv, filev, &in_background); //NORMAL MODE
-    }
+        else{
+            // Prompt
+            write(STDERR_FILENO, "MSH>>", strlen("MSH>>"));
+
+            // Get command
+            //********** DO NOT MODIFY THIS PART. IT DISTINGUISH BETWEEN NORMAL/CORRECTION MODE***************
+            executed_cmd_lines++;
+            if( end != 0 && executed_cmd_lines < end) {
+                command_counter = read_command_correction(&argvv, filev, &in_background, cmd_lines[executed_cmd_lines]);
+            }
+            else if( end != 0 && executed_cmd_lines == end)
+                return 0;
+            else
+                command_counter = read_command(&argvv, filev, &in_background); //NORMAL MODE
+        }
 		//************************************************************************************************
 
 
 		/************************ STUDENTS CODE ********************************/
-	   if (command_counter > 0) {
-			if (command_counter > MAX_COMMANDS){
-				printf("Error: Maximum number of commands is %d \n", MAX_COMMANDS);
-			}
-			else {
-				// Print command
-				print_command(argvv, filev, in_background);
-			}
-		}
+        if (command_counter > 0) {
+            if (command_counter > MAX_COMMANDS){
+                printf("Error: Maximum number of commands is %d \n", MAX_COMMANDS);
+            }
+            else {
+                // Print command
+                print_command(argvv, filev, in_background);
+
+                executeCommand(argvv, num_commands);
+            }
+        }
 	}
 	
 	return 0;
