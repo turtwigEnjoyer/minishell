@@ -27,7 +27,8 @@ char *argv_execvp[8];
 
 void siginthandler(int param)
 {
-	printf("****  Exiting MSH **** \n");
+	printf("\n****  Exiting MSH **** \n");
+
 	//signal(SIGINT, siginthandler);
 	exit(0);
 }
@@ -133,7 +134,8 @@ void getCompleteCommand(char*** argvv, int num_command) {
 		argv_execvp[i] = argvv[num_command][i];
 }
 
-void executeCommand(char ***argvv, int num_command){
+//  STUDENT FUNCTIONS
+void executeCommand(char ***argvv, int in_background, int num_command){
     //First lets do simple commands
     int pid, status;
     pid = fork();
@@ -142,12 +144,22 @@ void executeCommand(char ***argvv, int num_command){
             perror("Error in fork");
             break;
         case 0:
+            //Child executes command and exits
             execvp(argvv[0][0], argvv[0]);
             exit(0);
         default:
-            wait(NULL);
+            //Parent only waits for child if it is in foreground. Otherwise we deal with waiting at the end of execution when a signal is recieved
+            if( in_background != 1){
+                waitpid(pid, &status, 0);
+            }else{
+                printf(" Background process pid: %d\n", pid);
+            }
     }
-
+}
+void deadChildHandler(int sig){
+    //When childs finish their execution, we reap them as to not leave zombies
+    //printf(" A child has finished, reaping...\n");
+    wait(NULL);
 }
 /**
  * Main sheell  Loop  
@@ -180,7 +192,14 @@ int main(int argc, char* argv[])
 	history = (struct command*) malloc(history_size *sizeof(struct command));
 	int run_history = 0;
 
-	while (1) 
+    /* STUDENT CODE: handling children finishing their processes */
+    struct sigaction sa;
+    sa.sa_handler = deadChildHandler;
+    sa.sa_flags = 0;
+    sigemptyset (&(sa.sa_mask));
+    sigaction( SIGCHLD, &sa, NULL);
+
+    while (1)
 	{
 		int status = 0;
 		int command_counter = 0;
@@ -216,9 +235,15 @@ int main(int argc, char* argv[])
             }
             else {
                 // Print command
-                print_command(argvv, filev, in_background);
+                //print_command(argvv, filev);
 
-                executeCommand(argvv, num_commands);
+                char* bckg_description = "Foreground";
+
+                if( in_background == 1){
+                    bckg_description = "Background";
+                }
+                printf( "running in %s\n", bckg_description);
+                executeCommand(argvv, in_background, num_commands);
             }
         }
 	}
