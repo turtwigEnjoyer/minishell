@@ -1,0 +1,23 @@
+Para futuro Siro y Nora:
+
+El codigo entero viene dado y solo he tocado y deberiamos tocar:
+    Student Code section
+    función execute command
+
+Queda por hacer:
+    Control de procesos en background foreground
+        Creo que por defecto los procesos se ejecutan en background, ya que estamos creando un padre y un hijo que se ejecutan de manera paralela.
+        Entiendo que la unica manera de diferenciar entre bckg y fg es según la manera que el padre espera al hijo
+            fg: Hacer un wait en el padre justo despues del fork. Sencillo
+            bckg: No hacer el wait justo despues del fork. Entiendo que la unica preocupación es que nos maten al padre antes de que el hijo termine
+            --> Para evitar procesos zombies necesitamos un control de señales que o mate a todos los procesos o los espere antes de matar al padre
+        (Igual esto es incorrecto)
+
+        --> Para hacer esto necesitamos una funcion de control de señales
+
+    Secuencias de comandos por pipeline
+        Esto parece divertido. En requisito pone maximo 3 commandos en sequencia, pero nos ponen mas nota si implementamos un numero indeterminado.
+        Implica redireccionar stdout y stdin a un fichero propio (pipeline) y tener N procesos ejecutandose y escribiendo el output de su comando a el fichero
+
+    Redireccionar Output
+        Parece facil. close(stdin) y abrir uno propio. No lo he mirado mucho
