@@ -169,7 +169,7 @@ int mycalc(char ***argvv, int acc) {
   operand2 = atoi(argvv[0][3]);
   int cypher1, cypher2;
   cypher1 = digits(abs(operand1));
-  if (operand1 < 0) { // we count the minus sign as a digit
+  if (operand1 < 0) { // we count the minus sign as a valid digit
     cypher1++;
   }
   cypher2 = digits(abs(operand2));
@@ -178,7 +178,7 @@ int mycalc(char ***argvv, int acc) {
   }
   int wrong = 0;
 
-  // check if they put letters after the number
+  // check if they put letters in the number
   if (strlen(argvv[0][1]) != cypher1) {
     if (argvv[0][1][0] != '0' && argvv[0][1][0] != '-') {
       wrong = 1;
@@ -237,17 +237,26 @@ int mycalc(char ***argvv, int acc) {
     printf("[ERROR] The structure of the command is mycalc <operand 1> "
            "<add/mul/div><operand 2>\n");
   } else {
+    char *str = malloc(96);
     if (strcmp("mul", argvv[0][2]) == 0) {
-      printf("[OK] %d * %d = %d\n", operand1, operand2, operand1 * operand2);
+      sprintf(str, "[OK] %d * %d = %d\n", operand1, operand2,
+              operand1 * operand2);
+      write(STDERR_FILENO, str, strlen(str));
     }
     if (strcmp("div", argvv[0][2]) == 0) {
-      printf("[OK] %d / %d = %d; Remainder %d\n", operand1, operand2,
-             operand1 / operand2, operand1 % operand2);
+      if (operand2 == 0) {
+        printf("[ERROR] Division by 0 not allowed\n");
+      } else {
+        sprintf(str, "[OK] %d / %d = %d; Remainder %d\n", operand1, operand2,
+                operand1 / operand2, operand1 % operand2);
+        write(STDERR_FILENO, str, strlen(str));
+      }
     }
     if (strcmp("add", argvv[0][2]) == 0) {
       acc += operand1 + operand2;
-      printf("[OK] %d + %d = %d; Acc %d\n", operand1, operand2,
-             operand1 + operand2, acc);
+      sprintf(str, "[OK] %d + %d = %d; Acc %d\n", operand1, operand2,
+              operand1 + operand2, acc);
+      write(STDERR_FILENO, str, strlen(str));
     }
   }
 
@@ -335,7 +344,6 @@ int main(int argc, char *argv[]) {
         // print_command(argvv, filev);
 
         if (strcmp(argvv[0][0], "mycalc") == 0) {
-          printf("calling mycalc\n");
           acc = mycalc(argvv, acc);
         } else {
           pid = fork();
