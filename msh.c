@@ -5,6 +5,7 @@
 
 // #include "parser.h"
 #include <fcntl.h>
+#include <math.h>
 #include <signal.h>
 #include <stddef.h> /* NULL */
 #include <stdio.h>
@@ -148,6 +149,111 @@ void executeCommand(char ***argvv, int in_background, int num_command) {
   execvp(argvv[num_command - degree - 1][0], argvv[num_command - degree - 1]);
   exit(0);
 }
+
+int digits(int num) {
+  if (num < 10)
+    return 1;
+  return 1 + digits(num / 10);
+}
+
+int mycalc(char ***argvv, int acc) {
+  // check we have the right amount of args
+  if (argvv[0][1] == NULL || argvv[0][2] == NULL || argvv[0][3] == 0 ||
+      argvv[0][4] != NULL) {
+    printf("[ERROR] The structure of the command is mycalc <operand 1> "
+           "<add/mul/div><operand 2>\n");
+    return acc;
+  }
+  int operand1, operand2;
+  operand1 = atoi(argvv[0][1]);
+  operand2 = atoi(argvv[0][3]);
+  int cypher1, cypher2;
+  cypher1 = digits(abs(operand1));
+  if (operand1 < 0) { // we count the minus sign as a digit
+    cypher1++;
+  }
+  cypher2 = digits(abs(operand2));
+  if (operand2 < 0) {
+    cypher2++;
+  }
+  int wrong = 0;
+
+  // check if they put letters after the number
+  if (strlen(argvv[0][1]) != cypher1) {
+    if (argvv[0][1][0] != '0' && argvv[0][1][0] != '-') {
+      wrong = 1;
+    } else {
+      for (int i = 1; i < strlen(argvv[0][1]) - cypher1; i++) {
+        if (argvv[0][1][i] != '0') {
+          wrong = 1;
+          break;
+        }
+      }
+    }
+  }
+  if (strlen(argvv[0][3]) != cypher2 && wrong == 0) {
+    if (argvv[0][3][0] != '0' && argvv[0][3][0] != '-') {
+      wrong = 1;
+    } else {
+      for (int i = 1; i < strlen(argvv[0][3]) - cypher1; i++) {
+        if (argvv[0][3][i] != '0') {
+          wrong = 1;
+          break;
+        }
+      }
+    }
+  }
+  // check if they put a letter and we are taking it as a 0
+  if (operand1 == 0 && wrong == 0) {
+    if (argvv[0][1][0] != '0' && argvv[0][1][0] != '-') {
+      wrong = 1;
+    } else {
+      for (int i = 1; i < strlen(argvv[0][1]); i++) {
+        if (argvv[0][1][i] != '0') {
+          wrong = 1;
+          break;
+        }
+      }
+    }
+  }
+  if (operand2 == 0 && wrong == 0) {
+    if (argvv[0][3][0] != '0' && argvv[0][3][0] != '-') {
+      wrong = 1;
+    } else {
+      for (int i = 1; i < strlen(argvv[0][3]); i++) {
+        if (argvv[0][3][i] != '0') {
+          wrong = 1;
+          break;
+        }
+      }
+    }
+  }
+  if ((strcmp("add", argvv[0][2]) != 0) && (strcmp("mul", argvv[0][2]) != 0) &&
+      (strcmp("div", argvv[0][2]) != 0)) {
+    wrong = 1;
+  }
+
+  if (wrong == 1) {
+    printf("[ERROR] The structure of the command is mycalc <operand 1> "
+           "<add/mul/div><operand 2>\n");
+  } else {
+    if (strcmp("mul", argvv[0][2]) == 0) {
+      printf("[OK] %d * %d = %d\n", operand1, operand2, operand1 * operand2);
+    }
+    if (strcmp("div", argvv[0][2]) == 0) {
+      printf("[OK] %d / %d = %d; Remainder %d\n", operand1, operand2,
+             operand1 / operand2, operand1 % operand2);
+    }
+    if (strcmp("add", argvv[0][2]) == 0) {
+      acc += operand1 + operand2;
+      printf("[OK] %d + %d = %d; Acc %d\n", operand1, operand2,
+             operand1 + operand2, acc);
+    }
+  }
+
+  return acc;
+}
+
 void deadChildHandler(int sig) {
   // When childs finish their execution, we reap them as to not leave zombies
   // printf(" A child has finished, reaping...\n");
@@ -158,6 +264,7 @@ void deadChildHandler(int sig) {
  */
 int main(int argc, char *argv[]) {
   int pid;
+  int acc = 0;
   /**** Do not delete this code.****/
   int end = 0;
   int executed_cmd_lines = -1;
@@ -225,13 +332,18 @@ int main(int argc, char *argv[]) {
         printf("Error: Maximum number of commands is %d \n", MAX_COMMANDS);
       } else {
         // Print command
-        print_command(argvv, filev);
+        // print_command(argvv, filev);
 
-        pid = fork();
-        if (pid == 0) {
-          executeCommand(argvv, in_background, command_counter);
-        } else if (in_background == 0) {
-          wait(NULL);
+        if (strcmp(argvv[0][0], "mycalc") == 0) {
+          printf("calling mycalc\n");
+          acc = mycalc(argvv, acc);
+        } else {
+          pid = fork();
+          if (pid == 0) {
+            executeCommand(argvv, in_background, command_counter);
+          } else if (in_background == 0) {
+            wait(NULL);
+          }
         }
       }
     }
