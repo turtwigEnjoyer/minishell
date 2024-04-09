@@ -123,7 +123,8 @@ void getCompleteCommand(char ***argvv, int num_command) {
 }
 
 //  STUDENT FUNCTIONS
-void executeCommand(char ***argvv, int in_background, int num_command) {
+void executeCommand(char ***argvv, int in_background, int num_command,
+                    char filev[3][64]) {
   int pid, degree = 0, status;
   for (int i = 0; i < num_command - 1; i++) {
     int p[2];
@@ -146,6 +147,18 @@ void executeCommand(char ***argvv, int in_background, int num_command) {
     }
   }
 
+  if (strcmp(filev[0], "0") != 0 && degree == num_command - 1) {
+    close(STDIN_FILENO);
+    open(filev[0], O_RDONLY);
+  }
+  if (strcmp(filev[1], "0") != 0 && degree == 0) {
+    close(STDOUT_FILENO);
+    open(filev[1], O_RDWR | O_TRUNC | O_CREAT, 0664);
+  }
+  if (strcmp(filev[2], "0") != 0 && degree == 0) {
+    close(STDERR_FILENO);
+    open(filev[2], O_RDWR | O_TRUNC | O_CREAT, 0664);
+  }
   execvp(argvv[num_command - degree - 1][0], argvv[num_command - degree - 1]);
   exit(0);
 }
@@ -348,7 +361,7 @@ int main(int argc, char *argv[]) {
         } else {
           pid = fork();
           if (pid == 0) {
-            executeCommand(argvv, in_background, command_counter);
+            executeCommand(argvv, in_background, command_counter, filev);
           } else if (in_background == 0) {
             wait(NULL);
           }
