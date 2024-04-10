@@ -163,92 +163,38 @@ void executeCommand(char ***argvv, int in_background, int num_command,
   exit(0);
 }
 
-int digits(int num) {
-  if (num < 10)
-    return 1;
-  return 1 + digits(num / 10);
+int myatoi(char *str, int *wrong) {
+  int num, length;
+  num = atoi(str);
+  char *strnum = malloc(16);
+  sprintf(strnum, "%d", num);
+  if (strcmp(strnum, str) != 0) {
+    *wrong = 1;
+  }
+  free(strnum);
+  return num;
 }
 
-int mycalc(char ***argvv, int acc) {
+void mycalc(char ***argvv) {
   // check we have the right amount of args
   if (argvv[0][1] == NULL || argvv[0][2] == NULL || argvv[0][3] == 0 ||
       argvv[0][4] != NULL) {
-    printf("[ERROR] The structure of the command is mycalc <operand 1> "
-           "<add/mul/div><operand 2>\n");
-    return acc;
+    printf("[ERROR] The structure of the command is mycalc <operand_1> "
+           "<add/mul/div> <operand_2>\n");
+    return;
   }
-  int operand1, operand2;
-  operand1 = atoi(argvv[0][1]);
-  operand2 = atoi(argvv[0][3]);
-  int cypher1, cypher2;
-  cypher1 = digits(abs(operand1));
-  if (operand1 < 0) { // we count the minus sign as a valid digit
-    cypher1++;
-  }
-  cypher2 = digits(abs(operand2));
-  if (operand2 < 0) {
-    cypher2++;
-  }
-  int wrong = 0;
+  int operand1, operand2, wrong = 0;
+  operand1 = myatoi(argvv[0][1], &wrong);
+  operand2 = myatoi(argvv[0][3], &wrong);
 
-  // check if they put letters in the number
-  if (strlen(argvv[0][1]) != cypher1) {
-    if (argvv[0][1][0] != '0' && argvv[0][1][0] != '-') {
-      wrong = 1;
-    } else {
-      for (int i = 1; i < strlen(argvv[0][1]) - cypher1; i++) {
-        if (argvv[0][1][i] != '0') {
-          wrong = 1;
-          break;
-        }
-      }
-    }
-  }
-  if (strlen(argvv[0][3]) != cypher2 && wrong == 0) {
-    if (argvv[0][3][0] != '0' && argvv[0][3][0] != '-') {
-      wrong = 1;
-    } else {
-      for (int i = 1; i < strlen(argvv[0][3]) - cypher1; i++) {
-        if (argvv[0][3][i] != '0') {
-          wrong = 1;
-          break;
-        }
-      }
-    }
-  }
-  // check if they put a letter and we are taking it as a 0
-  if (operand1 == 0 && wrong == 0) {
-    if (argvv[0][1][0] != '0' && argvv[0][1][0] != '-') {
-      wrong = 1;
-    } else {
-      for (int i = 1; i < strlen(argvv[0][1]); i++) {
-        if (argvv[0][1][i] != '0') {
-          wrong = 1;
-          break;
-        }
-      }
-    }
-  }
-  if (operand2 == 0 && wrong == 0) {
-    if (argvv[0][3][0] != '0' && argvv[0][3][0] != '-') {
-      wrong = 1;
-    } else {
-      for (int i = 1; i < strlen(argvv[0][3]); i++) {
-        if (argvv[0][3][i] != '0') {
-          wrong = 1;
-          break;
-        }
-      }
-    }
-  }
   if ((strcmp("add", argvv[0][2]) != 0) && (strcmp("mul", argvv[0][2]) != 0) &&
       (strcmp("div", argvv[0][2]) != 0)) {
     wrong = 1;
   }
 
   if (wrong == 1) {
-    printf("[ERROR] The structure of the command is mycalc <operand 1> "
-           "<add/mul/div><operand 2>\n");
+    printf("[ERROR] The structure of the command is mycalc <operand_1> "
+           "<add/mul/div> <operand_2>\n");
   } else {
     char *str = malloc(96);
     if (strcmp("mul", argvv[0][2]) == 0) {
@@ -266,14 +212,20 @@ int mycalc(char ***argvv, int acc) {
       }
     }
     if (strcmp("add", argvv[0][2]) == 0) {
+      int acc;
+      acc = atoi(getenv("Acc"));
       acc += operand1 + operand2;
       sprintf(str, "[OK] %d + %d = %d; Acc %d\n", operand1, operand2,
               operand1 + operand2, acc);
       write(STDERR_FILENO, str, strlen(str));
+      char *s_acc = malloc(16);
+      sprintf(s_acc, "%d", acc);
+      setenv("Acc", s_acc, 1);
+      free(s_acc);
     }
+    free(str);
   }
-
-  return acc;
+  return;
 }
 
 void deadChildHandler(int sig) {
@@ -285,6 +237,7 @@ void deadChildHandler(int sig) {
  * Main sheell  Loop
  */
 int main(int argc, char *argv[]) {
+  setenv("Acc", "0", 0);
   int pid;
   int acc = 0;
   /**** Do not delete this code.****/
@@ -357,8 +310,15 @@ int main(int argc, char *argv[]) {
         // print_command(argvv, filev);
 
         if (strcmp(argvv[0][0], "mycalc") == 0) {
-          acc = mycalc(argvv, acc);
+          mycalc(argvv);
+        } else if (strcmp(argvv[0][0], "myhistory") == 0 &&
+                   argvv[0][1] == NULL) {
+          // printcommands
+          printf("printing commands\n");
         } else {
+          if (strcmp(argvv[0][0], "myhistory")) {
+            // change argvv to command
+          }
           pid = fork();
           if (pid == 0) {
             executeCommand(argvv, in_background, command_counter, filev);
