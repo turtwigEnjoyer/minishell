@@ -206,13 +206,12 @@ int myatoi(char *str, int *wrong) {
   return num;
 }
 
-void mycalc(char ***argvv, int *wrong) {
+void mycalc(char ***argvv) {
   // check we have the right amount of args
   if (argvv[0][1] == NULL || argvv[0][2] == NULL || argvv[0][3] == 0 ||
       argvv[0][4] != NULL) {
     printf("[ERROR] The structure of the command is mycalc <operand_1> "
            "<add/mul/div> <operand_2>\n");
-    *wrong = 1;
     return;
   }
   // check the operation
@@ -220,15 +219,14 @@ void mycalc(char ***argvv, int *wrong) {
       (strcmp("div", argvv[0][2]) != 0)) {
     printf("[ERROR] The structure of the command is mycalc <operand_1> "
            "<add/mul/div> <operand_2>\n");
-    *wrong = 1;
     return;
   }
 
-  int operand1, operand2;
-  operand1 = myatoi(argvv[0][1], wrong);
-  operand2 = myatoi(argvv[0][3], wrong);
+  int operand1, operand2, wrong = 0;
+  operand1 = myatoi(argvv[0][1], &wrong);
+  operand2 = myatoi(argvv[0][3], &wrong);
   char *str = malloc(96);
-  if (*wrong == 1) {
+  if (wrong == 1) {
     printf("[ERROR] The structure of the command is mycalc <operand_1> "
            "<add/mul/div> <operand_2>\n");
     return;
@@ -241,7 +239,7 @@ void mycalc(char ***argvv, int *wrong) {
   if (strcmp("div", argvv[0][2]) == 0) {
     if (operand2 == 0) {
       printf("[ERROR] Division by 0 not allowed\n");
-      *wrong = 1;
+      wrong = 1;
     } else {
       sprintf(str, "[OK] %d / %d = %d; Remainder %d\n", operand1, operand2,
               operand1 / operand2, operand1 % operand2);
@@ -265,10 +263,21 @@ void mycalc(char ***argvv, int *wrong) {
 }
 
 void my_print_cmd(struct command cmd) {
-  printf("%s", cmd.argvv[0][0]);
-  int argument = 1;
+
+  if (cmd.argvv[0] == NULL) {
+    printf("NULL\n");
+    return;
+  }
+  if (cmd.argvv[0][0] == NULL) {
+    printf("NULL\n");
+    return;
+  }
+  int argument = 0;
   while (cmd.argvv[0][argument] != NULL) {
-    printf(" %s", cmd.argvv[0][argument]);
+    if (argument != 0) {
+      printf(" ");
+    }
+    printf("%s", cmd.argvv[0][argument]);
     argument++;
   }
   for (int i = 1; i < cmd.num_commands; i++) {
@@ -292,6 +301,7 @@ void my_print_cmd(struct command cmd) {
     printf(" &");
   }
   printf("\n");
+  return;
 }
 
 void deadChildHandler(int sig) {
@@ -308,7 +318,6 @@ int main(int argc, char *argv[]) {
   int history_iterator = 0; // for queue access
   int counter = 0;          // to know the number of sequences executed
   int wrong = 0;            // to communicate errors between calls
-  struct command cmd;
   /**** Do not delete this code.****/
   int end = 0;
   int executed_cmd_lines = -1;
@@ -380,37 +389,44 @@ int main(int argc, char *argv[]) {
 
         if (strcmp(argvv[0][0], "myhistory") == 0 && argvv[0][1] == NULL) {
           if (counter < history_size) {
-            printf("printing small\n");
             for (int i = 0; i < counter; i++) {
+              struct command cmd;
+              store_command(argvv, filev, in_background, &cmd);
               // store_command(history[i].argvv, history[i].filev,
               //               history[i].in_background, &cmd);
               printf("%d \n", i);
-              // my_print_cmd(cmd);
+              my_print_cmd(cmd);
+              free_command(&cmd);
             }
+            printf("myhistory end\n");
           } else {
-            printf("printing all\n");
             for (int i = 0; i < history_size; i++) {
+              struct command cmd;
+              // store_command(argvv, filev, in_background, &cmd);
               // store_command(
               //     history[(history_iterator + i) % history_size].argvv,
               //     history[(history_iterator + i) % history_size].filev,
               //     history[(history_iterator + i) %
               //     history_size].in_background, &cmd);
               printf("%d \n", i);
-              // my_print_cmd(cmd);
+
+              // print_command(argvv, filev);
+              my_print_cmd(cmd);
+              free_command(&cmd);
             }
           }
         } else {
           counter++;
-          if (strcmp(argvv[0][0], "myhistory")) {
+          if (strcmp(argvv[0][0], "myhistory") == 0) {
+            printf("changing values\n");
+
             // change argvv to command
           }
-          // store_command(argvv, filev, in_background, &cmd);
           if (strcmp(argvv[0][0], "mycalc") == 0) {
             if (command_counter != 1) {
               printf("[ERROR] Command mycalc does not allow redirections\n");
-              wrong = 1;
             } else {
-              mycalc(argvv, &wrong);
+              mycalc(argvv);
             }
           } else {
             shell_fork_id = fork();
@@ -420,14 +436,12 @@ int main(int argc, char *argv[]) {
               wait(NULL);
             }
           }
-          if (wrong == 1) {
-            counter--;
-            wrong = 0;
-          } else {
-            // store_command(argvv, filev, in_background,
-            //               &history[history_iterator]);
-            // history_iterator = (history_iterator + 1) % history_size;
-          }
+          // printf("storing command\n");
+          // free_command(&history[history_iterator]);
+          // store_command(argvv, filev, in_background,
+          //               &(history[history_iterator]));
+          // history_iterator = (history_iterator + 1) % history_size;
+          // printf("command stored\n");
         }
       }
     }
