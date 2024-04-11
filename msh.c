@@ -263,7 +263,6 @@ void mycalc(char ***argvv) {
 }
 
 void my_print_cmd(struct command cmd) {
-
   if (cmd.argvv[0] == NULL) {
     printf("NULL\n");
     return;
@@ -390,36 +389,29 @@ int main(int argc, char *argv[]) {
         if (strcmp(argvv[0][0], "myhistory") == 0 && argvv[0][1] == NULL) {
           if (counter < history_size) {
             for (int i = 0; i < counter; i++) {
-              struct command cmd;
-              store_command(argvv, filev, in_background, &cmd);
+              // struct command cmd;
               // store_command(history[i].argvv, history[i].filev,
               //               history[i].in_background, &cmd);
               printf("%d \n", i);
-              my_print_cmd(cmd);
-              free_command(&cmd);
+              // my_print_cmd(cmd);
+              // free_command(&cmd);
             }
-            printf("myhistory end\n");
           } else {
             for (int i = 0; i < history_size; i++) {
-              struct command cmd;
-              // store_command(argvv, filev, in_background, &cmd);
+              // struct command cmd;
               // store_command(
               //     history[(history_iterator + i) % history_size].argvv,
               //     history[(history_iterator + i) % history_size].filev,
               //     history[(history_iterator + i) %
               //     history_size].in_background, &cmd);
               printf("%d \n", i);
-
-              // print_command(argvv, filev);
-              my_print_cmd(cmd);
-              free_command(&cmd);
+              // my_print_cmd(cmd);
+              // free_command(&cmd);
             }
           }
         } else {
           counter++;
           if (strcmp(argvv[0][0], "myhistory") == 0) {
-            printf("changing values\n");
-
             // change argvv to command
           }
           if (strcmp(argvv[0][0], "mycalc") == 0) {
