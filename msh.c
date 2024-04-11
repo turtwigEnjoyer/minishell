@@ -5,7 +5,6 @@
 
 // #include "parser.h"
 #include <fcntl.h>
-#include <math.h>
 #include <signal.h>
 #include <stddef.h> /* NULL */
 #include <stdio.h>
@@ -49,7 +48,7 @@ struct command {
   int in_background;
 };
 
-int history_size = 20;
+int history_size = 5;
 struct command *history;
 int head = 0;
 int tail = 0;
@@ -163,69 +162,136 @@ void executeCommand(char ***argvv, int in_background, int num_command,
   exit(0);
 }
 
+int digits(int num) {
+  if (num < 10)
+    return 1;
+  return 1 + digits(num / 10);
+}
+
 int myatoi(char *str, int *wrong) {
   int num, length;
   num = atoi(str);
+  length = digits(abs(num));
   char *strnum = malloc(16);
   sprintf(strnum, "%d", num);
   if (strcmp(strnum, str) != 0) {
-    *wrong = 1;
+    if (strlen(str) != length) {
+      if (str[0] != '0' && str[0] != '-') {
+        *wrong = 1;
+        return num;
+      } else {
+        for (int i = 1; i < strlen(str) - length; i++) {
+          if (str[i] != '0') {
+            *wrong = 1;
+            return num;
+          }
+        }
+      }
+    }
+    if (num == 0) {
+      if (str[0] != '0' && str[0] != '-') {
+        *wrong = 1;
+        return num;
+      } else {
+        for (int i = 1; i < strlen(str); i++) {
+          if (str[i] != '0') {
+            *wrong = 1;
+            return num;
+          }
+        }
+      }
+    }
   }
   free(strnum);
   return num;
 }
 
-void mycalc(char ***argvv) {
+void mycalc(char ***argvv, int *wrong) {
   // check we have the right amount of args
   if (argvv[0][1] == NULL || argvv[0][2] == NULL || argvv[0][3] == 0 ||
       argvv[0][4] != NULL) {
     printf("[ERROR] The structure of the command is mycalc <operand_1> "
            "<add/mul/div> <operand_2>\n");
+    *wrong = 1;
     return;
   }
-  int operand1, operand2, wrong = 0;
-  operand1 = myatoi(argvv[0][1], &wrong);
-  operand2 = myatoi(argvv[0][3], &wrong);
-
+  // check the operation
   if ((strcmp("add", argvv[0][2]) != 0) && (strcmp("mul", argvv[0][2]) != 0) &&
       (strcmp("div", argvv[0][2]) != 0)) {
-    wrong = 1;
-  }
-
-  if (wrong == 1) {
     printf("[ERROR] The structure of the command is mycalc <operand_1> "
            "<add/mul/div> <operand_2>\n");
-  } else {
-    char *str = malloc(96);
-    if (strcmp("mul", argvv[0][2]) == 0) {
-      sprintf(str, "[OK] %d * %d = %d\n", operand1, operand2,
-              operand1 * operand2);
-      write(STDERR_FILENO, str, strlen(str));
-    }
-    if (strcmp("div", argvv[0][2]) == 0) {
-      if (operand2 == 0) {
-        printf("[ERROR] Division by 0 not allowed\n");
-      } else {
-        sprintf(str, "[OK] %d / %d = %d; Remainder %d\n", operand1, operand2,
-                operand1 / operand2, operand1 % operand2);
-        write(STDERR_FILENO, str, strlen(str));
-      }
-    }
-    if (strcmp("add", argvv[0][2]) == 0) {
-      int acc;
-      acc = atoi(getenv("Acc"));
-      acc += operand1 + operand2;
-      sprintf(str, "[OK] %d + %d = %d; Acc %d\n", operand1, operand2,
-              operand1 + operand2, acc);
-      write(STDERR_FILENO, str, strlen(str));
-      char *s_acc = malloc(16);
-      sprintf(s_acc, "%d", acc);
-      setenv("Acc", s_acc, 1);
-      free(s_acc);
-    }
-    free(str);
+    *wrong = 1;
+    return;
   }
+
+  int operand1, operand2;
+  operand1 = myatoi(argvv[0][1], wrong);
+  operand2 = myatoi(argvv[0][3], wrong);
+  char *str = malloc(96);
+  if (*wrong == 1) {
+    printf("[ERROR] The structure of the command is mycalc <operand_1> "
+           "<add/mul/div> <operand_2>\n");
+    return;
+  }
+  if (strcmp("mul", argvv[0][2]) == 0) {
+    sprintf(str, "[OK] %d * %d = %d\n", operand1, operand2,
+            operand1 * operand2);
+    write(STDERR_FILENO, str, strlen(str));
+  }
+  if (strcmp("div", argvv[0][2]) == 0) {
+    if (operand2 == 0) {
+      printf("[ERROR] Division by 0 not allowed\n");
+      *wrong = 1;
+    } else {
+      sprintf(str, "[OK] %d / %d = %d; Remainder %d\n", operand1, operand2,
+              operand1 / operand2, operand1 % operand2);
+      write(STDERR_FILENO, str, strlen(str));
+    }
+  }
+  if (strcmp("add", argvv[0][2]) == 0) {
+    int acc;
+    acc = atoi(getenv("Acc"));
+    acc += operand1 + operand2;
+    sprintf(str, "[OK] %d + %d = %d; Acc %d\n", operand1, operand2,
+            operand1 + operand2, acc);
+    write(STDERR_FILENO, str, strlen(str));
+    char *s_acc = malloc(16);
+    sprintf(s_acc, "%d", acc);
+    setenv("Acc", s_acc, 1);
+    free(s_acc);
+  }
+  free(str);
   return;
+}
+
+void my_print_cmd(struct command cmd) {
+  printf("%s", cmd.argvv[0][0]);
+  int argument = 1;
+  while (cmd.argvv[0][argument] != NULL) {
+    printf(" %s", cmd.argvv[0][argument]);
+    argument++;
+  }
+  for (int i = 1; i < cmd.num_commands; i++) {
+    printf(" | %s", cmd.argvv[i][0]);
+    argument = 1;
+    while (cmd.argvv[i][argument] != NULL) {
+      printf(" %s", cmd.argvv[i][argument]);
+      argument++;
+    }
+  }
+  if (strcmp(cmd.filev[0], "0") != 0) {
+    printf(" < %s", filev[0]);
+  }
+  if (strcmp(cmd.filev[1], "0") != 0) {
+    printf(" > %s", filev[1]);
+  }
+  if (strcmp(cmd.filev[2], "0") != 0) {
+    printf(" !> %s", filev[2]);
+  }
+  if (cmd.in_background == 1) {
+    printf(" &");
+  }
+  printf("\n");
 }
 
 void deadChildHandler(int sig) {
@@ -238,8 +304,11 @@ void deadChildHandler(int sig) {
  */
 int main(int argc, char *argv[]) {
   setenv("Acc", "0", 0);
-  int pid;
-  int acc = 0;
+  int shell_fork_id;
+  int history_iterator = 0; // for queue access
+  int counter = 0;          // to know the number of sequences executed
+  int wrong = 0;            // to communicate errors between calls
+  struct command cmd;
   /**** Do not delete this code.****/
   int end = 0;
   int executed_cmd_lines = -1;
@@ -309,21 +378,55 @@ int main(int argc, char *argv[]) {
         // Print command
         // print_command(argvv, filev);
 
-        if (strcmp(argvv[0][0], "mycalc") == 0) {
-          mycalc(argvv);
-        } else if (strcmp(argvv[0][0], "myhistory") == 0 &&
-                   argvv[0][1] == NULL) {
-          // printcommands
-          printf("printing commands\n");
+        if (strcmp(argvv[0][0], "myhistory") == 0 && argvv[0][1] == NULL) {
+          if (counter < history_size) {
+            printf("printing small\n");
+            for (int i = 0; i < counter; i++) {
+              // store_command(history[i].argvv, history[i].filev,
+              //               history[i].in_background, &cmd);
+              printf("%d \n", i);
+              // my_print_cmd(cmd);
+            }
+          } else {
+            printf("printing all\n");
+            for (int i = 0; i < history_size; i++) {
+              // store_command(
+              //     history[(history_iterator + i) % history_size].argvv,
+              //     history[(history_iterator + i) % history_size].filev,
+              //     history[(history_iterator + i) %
+              //     history_size].in_background, &cmd);
+              printf("%d \n", i);
+              // my_print_cmd(cmd);
+            }
+          }
         } else {
+          counter++;
           if (strcmp(argvv[0][0], "myhistory")) {
             // change argvv to command
           }
-          pid = fork();
-          if (pid == 0) {
-            executeCommand(argvv, in_background, command_counter, filev);
-          } else if (in_background == 0) {
-            wait(NULL);
+          // store_command(argvv, filev, in_background, &cmd);
+          if (strcmp(argvv[0][0], "mycalc") == 0) {
+            if (command_counter != 1) {
+              printf("[ERROR] Command mycalc does not allow redirections\n");
+              wrong = 1;
+            } else {
+              mycalc(argvv, &wrong);
+            }
+          } else {
+            shell_fork_id = fork();
+            if (shell_fork_id == 0) {
+              executeCommand(argvv, in_background, command_counter, filev);
+            } else if (in_background == 0) {
+              wait(NULL);
+            }
+          }
+          if (wrong == 1) {
+            counter--;
+            wrong = 0;
+          } else {
+            // store_command(argvv, filev, in_background,
+            //               &history[history_iterator]);
+            // history_iterator = (history_iterator + 1) % history_size;
           }
         }
       }
