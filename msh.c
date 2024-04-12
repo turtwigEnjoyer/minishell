@@ -130,36 +130,79 @@ void executeCommand(char ***argvv, int in_background, int num_command,
     pipe(p);
     pid = fork();
     if (pid == -1) {
-      perror("Error in fork");
+      perror("Error in fork\n");
       exit(-1);
-    } else if (pid == 0) {
+    } else if (pid == 0) { // child
       degree++; // this degree is independent and is only increased by child
-      close(p[0]);
-      close(1);
-      dup(p[1]);
-    } else {
-      close(p[1]);
-      close(0);
-      dup(p[0]);
-      wait(NULL);
+      if (close(p[0]) == -1) {
+        perror("Error connecting pipes\n");
+        exit(-1);
+      }
+      if (close(1) == -1) {
+        perror("Error connecting pipes\n");
+        exit(-1);
+      }
+      if (dup(p[1]) == -1) {
+        perror("Error connecting pipes\n");
+        exit(-1);
+      }
+    } else { // parent
+      wait(&status);
+      if (status != 0) {
+        exit(-1);
+      }
+      if (close(p[1]) == -1) {
+        perror("Error connecting pipes\n");
+        exit(-1);
+      }
+      if (close(0) == -1) {
+        perror("Error connecting pipes\n");
+        exit(-1);
+      }
+      if (dup(p[0]) == -1) {
+        perror("Error connecting pipes\n");
+        exit(-1);
+      }
       break;
     }
   }
 
   if (strcmp(filev[0], "0") != 0 && degree == num_command - 1) {
-    close(STDIN_FILENO);
-    open(filev[0], O_RDONLY);
+    if (close(STDIN_FILENO) == -1) {
+      perror("Error opening file\n");
+      exit(-1);
+    }
+    if (open(filev[0], O_RDONLY) == -1) {
+      perror("Error opening file\n");
+      exit(-1);
+    }
   }
   if (strcmp(filev[1], "0") != 0 && degree == 0) {
-    close(STDOUT_FILENO);
-    open(filev[1], O_RDWR | O_TRUNC | O_CREAT, 0664);
+    if (close(STDOUT_FILENO) == -1) {
+      perror("Error opening file\n");
+      exit(-1);
+    }
+    if (open(filev[1], O_RDWR | O_TRUNC | O_CREAT, 0664) == -1) {
+      perror("Error opening file\n");
+      exit(-1);
+    }
   }
   if (strcmp(filev[2], "0") != 0 && degree == 0) {
-    close(STDERR_FILENO);
-    open(filev[2], O_RDWR | O_TRUNC | O_CREAT, 0664);
+    if (close(STDERR_FILENO) == -1) {
+      perror("Error opening file\n");
+      exit(-1);
+    }
+    if (open(filev[2], O_RDWR | O_TRUNC | O_CREAT, 0664) == -1) {
+      perror("Error opening file\n");
+      exit(-1);
+    }
   }
-  execvp(argvv[num_command - degree - 1][0], argvv[num_command - degree - 1]);
-  exit(0);
+  if (execvp(argvv[num_command - degree - 1][0],
+             argvv[num_command - degree - 1]) == -1) {
+    perror("Error executing command\n");
+    exit(-1);
+  }
+  exit(0); // nothing failed
 }
 
 int digits(int num) {
@@ -422,7 +465,9 @@ int main(int argc, char *argv[]) {
             }
           } else {
             shell_fork_id = fork();
-            if (shell_fork_id == 0) {
+            if (shell_fork_id == -1) {
+              perror("Error in fork\n");
+            } else if (shell_fork_id == 0) {
               executeCommand(argvv, in_background, command_counter, filev);
             } else if (in_background == 0) {
               wait(NULL);
