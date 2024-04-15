@@ -24,8 +24,7 @@ char filev[3][64];
 
 // to store the execvp second parameter
 char *argv_execvp[8];
-//to store command history
-
+// to store command history
 
 struct command {
   // Store the number of commands in argvv
@@ -52,6 +51,56 @@ void free_command(struct command *cmd) {
     }
   }
   free((*cmd).args);
+}
+
+int digits(int num) {
+  if (num < 10)
+    return 1;
+  return 1 + digits(num / 10);
+}
+
+int min(int a, int b) {
+  if (a > b)
+    return a;
+  return b;
+}
+
+int myatoi(char *str, int *wrong) {
+  int num, length;
+  num = atoi(str);
+  length = digits(abs(num));
+  char *strnum = malloc(16);
+  sprintf(strnum, "%d", num);
+  if (strcmp(strnum, str) != 0) {
+    if (strlen(str) != length) {
+      if (str[0] != '0' && str[0] != '-') {
+        *wrong = 1;
+        return num;
+      } else {
+        for (int i = 1; i < strlen(str) - length; i++) {
+          if (str[i] != '0') {
+            *wrong = 1;
+            return num;
+          }
+        }
+      }
+    }
+    if (num == 0) {
+      if (str[0] != '0' && str[0] != '-') {
+        *wrong = 1;
+        return num;
+      } else {
+        for (int i = 1; i < strlen(str); i++) {
+          if (str[i] != '0') {
+            *wrong = 1;
+            return num;
+          }
+        }
+      }
+    }
+  }
+  free(strnum);
+  return num;
 }
 
 void my_print_cmd(struct command cmd) {
@@ -95,28 +144,26 @@ void my_print_cmd(struct command cmd) {
   return;
 }
 
-
-
 struct command history[HISTORY_SIZE];
 int head = 0;
 int tail = 0;
 int n_elem = 0;
 
-
 void siginthandler(int param) {
   printf("\n****  Exiting MSH **** \n");
-  for ( int i = 0; i< HISTORY_SIZE; i++){
-    if( history[i].args == NULL ) break;
-    free_command( &history[i]);
+  for (int i = 0; i < HISTORY_SIZE; i++) {
+    if (history[i].args == NULL)
+      break;
+    free_command(&history[i]);
   }
   // signal(SIGINT, siginthandler);
   exit(0);
 }
 
-//Checks for correct number of commands
-int is_valid_counter(int command_counter){
-  if( command_counter == 0){
-    //No commands -> ask user again
+// Checks for correct number of commands
+int is_valid_counter(int command_counter) {
+  if (command_counter == 0) {
+    // No commands -> ask user again
     return -1;
   }
   if (command_counter > MAX_COMMANDS) {
@@ -126,55 +173,51 @@ int is_valid_counter(int command_counter){
   return 1;
 }
 
+void myhist_no_args(int counter, int history_it) {
+  // Should only print the last commands into STDERR
 
-void myhist_no_args(int counter, int history_it){
-  //Should only print the last commands into STDERR
-  
   int begin = 0;
-  
-  if ( counter >= HISTORY_SIZE){
-    //If we have 20 commands in history, the 20th ago command is stored one after our iterator
-    //(We have an array size 20, which will overwrite commands as it fills up)
-    begin = (history_it+1)%HISTORY_SIZE;
+
+  if (counter >= HISTORY_SIZE) {
+    // If we have 20 commands in history, the 20th ago command is stored one
+    // after our iterator (We have an array size 20, which will overwrite
+    // commands as it fills up)
+    begin = (history_it + 1) % HISTORY_SIZE;
   }
   int count = 0;
-  for (int i = begin; i != history_it; i = (i+1)%HISTORY_SIZE) {
-    
+  printf("Command %d: ", count);
+  my_print_cmd(history[history_it]);
+  printf("\n");
+  for (int i = begin; i != history_it; i = (i + 1) % HISTORY_SIZE) {
+
+    count++;
     printf("Command %d: ", count);
     my_print_cmd(history[i]);
-    printf( "\n");
-    count ++;
+    printf("\n");
   }
 }
-void myhist_args(int it){
+void myhist_args(int it) {}
+void run_my_history(char ***argvv, int counter, int history_it) {
 
-}
-void run_my_history(char ***argvv, int counter, int history_it){
-
-  if ( argvv[0][1] == NULL){
+  if (argvv[0][1] == NULL) {
     myhist_no_args(counter, history_it);
     return;
   }
-  //Run command at inputted number
-  //Command 19 is prev, command 0 is 20 commands ago
+  // Run command at inputted number
+  // Command 19 is prev, command 0 is 20 commands ago
   int wrong = 0;
-  int num = myatoi( argvv[0][1], &wrong);
-  if( wrong == 1){
+  int num = myatoi(argvv[0][1], &wrong);
+  if (wrong == 1) {
     printf("ERROR: Command structure is: \n myhistory <Num (optional) > \n");
   }
-  if( num < 0 || num > HISTORY_SIZE || ( counter < HISTORY_SIZE && counter > num) ){
+  if (num < 0 || num > HISTORY_SIZE ||
+      (counter < HISTORY_SIZE && counter > num)) {
     printf("ERROR: Command not found\n");
   }
-  //Get position of command in history[]
-  //int pos = (history_it - (HISTORY_SIZE-1) + num)%HISTORY_SIZE
-  //myhist_args(it);
- 
+  // Get position of command in history[]
+  // int pos = (history_it - (HISTORY_SIZE-1) + num)%HISTORY_SIZE
+  // myhist_args(it);
 }
-
-
-
-
-
 
 void store_command(char ***argvv, char filev[3][64], int in_background,
                    struct command *cmd) {
@@ -229,10 +272,10 @@ void getCompleteCommand(char ***argvv, int num_command) {
 }
 
 //  STUDENT FUNCTIONS
-//Checks possible command redirection errors
+// Checks possible command redirection errors
 
-
-void is_valid_open_file(char ***argvv, char filev[3][64], int degree, int num_command){
+void is_valid_open_file(char ***argvv, char filev[3][64], int degree,
+                        int num_command) {
   if (strcmp(filev[0], "0") != 0 && degree == num_command - 1) {
     if (close(STDIN_FILENO) == -1) {
       perror("Error opening file\n");
@@ -288,12 +331,12 @@ void executeCommand(char ***argvv, int in_background, int num_command,
       }
 
     } else { // parent
-      
+
       waitpid(pid, &status, 0);
       if (status != 0) {
         exit(-1);
       }
-      if (close(p[1]) == -1 || close(0) == -1 || dup(p[0]) == -1 ) {
+      if (close(p[1]) == -1 || close(0) == -1 || dup(p[0]) == -1) {
         perror("Error connecting pipes\n");
         exit(-1);
       }
@@ -301,12 +344,12 @@ void executeCommand(char ***argvv, int in_background, int num_command,
     }
   }
 
-  is_valid_open_file( argvv, filev, degree, num_command);
+  is_valid_open_file(argvv, filev, degree, num_command);
   exit(0); // nothing failed
 }
 
 void start_command(char ***argvv, int in_background, int num_command,
-                    char filev[3][64], int command_counter){
+                   char filev[3][64], int command_counter) {
 
   int shell_fork_id = fork();
   if (shell_fork_id == -1) {
@@ -316,55 +359,6 @@ void start_command(char ***argvv, int in_background, int num_command,
   } else if (in_background == 0) {
     waitpid(shell_fork_id, NULL, 0);
   }
-}
-
-int digits(int num) {
-  if (num < 10)
-    return 1;
-  return 1 + digits(num / 10);
-}
-
-int min( int a, int b){
-  if( a> b) return a;
-  return b;
-}
-
-int myatoi(char *str, int *wrong) {
-  int num, length;
-  num = atoi(str);
-  length = digits(abs(num));
-  char *strnum = malloc(16);
-  sprintf(strnum, "%d", num);
-  if (strcmp(strnum, str) != 0) {
-    if (strlen(str) != length) {
-      if (str[0] != '0' && str[0] != '-') {
-        *wrong = 1;
-        return num;
-      } else {
-        for (int i = 1; i < strlen(str) - length; i++) {
-          if (str[i] != '0') {
-            *wrong = 1;
-            return num;
-          }
-        }
-      }
-    }
-    if (num == 0) {
-      if (str[0] != '0' && str[0] != '-') {
-        *wrong = 1;
-        return num;
-      } else {
-        for (int i = 1; i < strlen(str); i++) {
-          if (str[i] != '0') {
-            *wrong = 1;
-            return num;
-          }
-        }
-      }
-    }
-  }
-  free(strnum);
-  return num;
 }
 
 void mycalc(char ***argvv) {
@@ -423,7 +417,6 @@ void mycalc(char ***argvv) {
   return;
 }
 
-
 /**
  * Main sheell  Loop
  */
@@ -457,7 +450,6 @@ int main(int argc, char *argv[]) {
   char ***argvv = NULL;
   int num_commands;
 
-
   int run_history = 0;
 
   while (1) {
@@ -488,29 +480,29 @@ int main(int argc, char *argv[]) {
     //************************************************************************************************
 
     /************************ STUDENTS CODE ********************************/
-    
-      // Print command
-      // print_command(argvv, filev);
-    if( is_valid_counter(command_counter) < 0) continue;
+
+    // Print command
+    // print_command(argvv, filev);
+    if (is_valid_counter(command_counter) < 0)
+      continue;
 
     if (strcmp(argvv[0][0], "myhistory") == 0) {
       run_my_history(argvv, counter, history_iterator);
     } else if (strcmp(argvv[0][0], "mycalc") == 0) {
-        if (command_counter != 1) {
-          printf("[ERROR] Command mycalc does not allow redirections\n");
-        } else {
-          mycalc(argvv);
-        }
+      if (command_counter != 1) {
+        printf("[ERROR] Command mycalc does not allow redirections\n");
+      } else {
+        mycalc(argvv);
+      }
     } else {
       start_command(argvv, in_background, num_commands, filev, command_counter);
     }
     // printf("storing command\n");
 
-    store_command(argvv, filev, in_background,
-                   &(history[history_iterator]));
+    store_command(argvv, filev, in_background, &(history[history_iterator]));
     counter++;
     history_iterator = (history_iterator + 1) % HISTORY_SIZE;
-    // printf("command stored\n");  
+    // printf("command stored\n");
   }
 
   return 0;
