@@ -17,6 +17,7 @@
 #include <wait.h>
 
 #define MAX_COMMANDS 8
+#define HISTORY_SIZE 20
 
 // files in case of redirection
 char filev[3][64];
@@ -31,10 +32,44 @@ void siginthandler(int param) {
   exit(0);
 }
 
-/* myhistory */
-
-/* myhistory */
-
+//Checks for correct number of commands
+int is_valid_counter(int command_counter){
+  if( command_counter == 0){
+    //No commands -> ask user again
+    return -1;
+  }
+  if (command_counter > MAX_COMMANDS) {
+    printf("Error: Maximum number of commands is %d \n", MAX_COMMANDS);
+    return -1;
+  }
+  return 1;
+}
+/*
+void run_my_history(){
+  if (counter < history_size) {
+            for (int i = 0; i < counter; i++) {
+              // struct command cmd;
+              // store_command(history[i].argvv, history[i].filev,
+              //               history[i].in_background, &cmd);
+              printf("%d \n", i);
+              // my_print_cmd(cmd);
+              // free_command(&cmd);
+            }
+          } else {
+            for (int i = 0; i < history_size; i++) {
+              // struct command cmd;
+              // store_command(
+              //     history[(history_iterator + i) % history_size].argvv,
+              //     history[(history_iterator + i) % history_size].filev,
+              //     history[(history_iterator + i) %
+              //     history_size].in_background, &cmd);
+              printf("%d \n", i);
+              // my_print_cmd(cmd);
+              // free_command(&cmd);
+            }
+          }
+}
+*/
 struct command {
   // Store the number of commands in argvv
   int num_commands;
@@ -48,8 +83,7 @@ struct command {
   int in_background;
 };
 
-int history_size = 5;
-struct command *history;
+
 int head = 0;
 int tail = 0;
 int n_elem = 0;
@@ -122,51 +156,8 @@ void getCompleteCommand(char ***argvv, int num_command) {
 }
 
 //  STUDENT FUNCTIONS
-void executeCommand(char ***argvv, int in_background, int num_command,
-                    char filev[3][64]) {
-  int pid, degree = 0, status;
-  for (int i = 0; i < num_command - 1; i++) {
-    int p[2];
-    pipe(p);
-    pid = fork();
-    if (pid == -1) {
-      perror("Error in fork\n");
-      exit(-1);
-    } else if (pid == 0) { // child
-      degree++; // this degree is independent and is only increased by child
-      if (close(p[0]) == -1) {
-        perror("Error connecting pipes\n");
-        exit(-1);
-      }
-      if (close(1) == -1) {
-        perror("Error connecting pipes\n");
-        exit(-1);
-      }
-      if (dup(p[1]) == -1) {
-        perror("Error connecting pipes\n");
-        exit(-1);
-      }
-    } else { // parent
-      wait(&status);
-      if (status != 0) {
-        exit(-1);
-      }
-      if (close(p[1]) == -1) {
-        perror("Error connecting pipes\n");
-        exit(-1);
-      }
-      if (close(0) == -1) {
-        perror("Error connecting pipes\n");
-        exit(-1);
-      }
-      if (dup(p[0]) == -1) {
-        perror("Error connecting pipes\n");
-        exit(-1);
-      }
-      break;
-    }
-  }
-
+//Checks possible command redirection errors
+void is_valid_open_file(char ***argvv, char filev[3][64], int degree, int num_command){
   if (strcmp(filev[0], "0") != 0 && degree == num_command - 1) {
     if (close(STDIN_FILENO) == -1) {
       perror("Error opening file\n");
@@ -202,6 +193,39 @@ void executeCommand(char ***argvv, int in_background, int num_command,
     perror("Error executing command\n");
     exit(-1);
   }
+}
+void executeCommand(char ***argvv, int in_background, int num_command,
+                    char filev[3][64]) {
+  int pid, degree = 0, status;
+  for (int i = 0; i < num_command - 1; i++) {
+    int p[2];
+    pipe(p);
+    pid = fork();
+    if (pid == -1) {
+      perror("Error in fork\n");
+      exit(-1);
+    } else if (pid == 0) { // child
+      degree++; // this degree is independent and is only increased by child
+      if (close(p[0]) == -1 || close(1) == -1 || dup(p[1]) == -1) {
+        perror("Error connecting pipes\n");
+        exit(-1);
+      }
+
+    } else { // parent
+      
+      waitpid(pid, &status, 0);
+      if (status != 0) {
+        exit(-1);
+      }
+      if (close(p[1]) == -1 || close(0) == -1 || dup(p[0]) == -1 ) {
+        perror("Error connecting pipes\n");
+        exit(-1);
+      }
+      break;
+    }
+  }
+
+  is_valid_open_file( argvv, filev, degree, num_command);
   exit(0); // nothing failed
 }
 
@@ -346,11 +370,7 @@ void my_print_cmd(struct command cmd) {
   return;
 }
 
-void deadChildHandler(int sig) {
-  // When childs finish their execution, we reap them as to not leave zombies
-  // printf(" A child has finished, reaping...\n");
-  wait(NULL);
-}
+
 /**
  * Main sheell  Loop
  */
@@ -360,6 +380,7 @@ int main(int argc, char *argv[]) {
   int history_iterator = 0; // for queue access
   int counter = 0;          // to know the number of sequences executed
   int wrong = 0;            // to communicate errors between calls
+  struct command history[HISTORY_SIZE];
   /**** Do not delete this code.****/
   int end = 0;
   int executed_cmd_lines = -1;
@@ -384,15 +405,8 @@ int main(int argc, char *argv[]) {
   char ***argvv = NULL;
   int num_commands;
 
-  history = (struct command *)malloc(history_size * sizeof(struct command));
-  int run_history = 0;
 
-  /* STUDENT CODE: handling children finishing their processes */
-  struct sigaction sa;
-  sa.sa_handler = deadChildHandler;
-  sa.sa_flags = 0;
-  sigemptyset(&(sa.sa_mask));
-  sigaction(SIGCHLD, &sa, NULL);
+  int run_history = 0;
 
   while (1) {
     int status = 0;
@@ -422,66 +436,40 @@ int main(int argc, char *argv[]) {
     //************************************************************************************************
 
     /************************ STUDENTS CODE ********************************/
-    if (command_counter > 0) {
-      if (command_counter > MAX_COMMANDS) {
-        printf("Error: Maximum number of commands is %d \n", MAX_COMMANDS);
-      } else {
-        // Print command
-        // print_command(argvv, filev);
+    
+      // Print command
+      // print_command(argvv, filev);
+    if( is_valid_counter(command_counter) < 0) continue;
 
-        if (strcmp(argvv[0][0], "myhistory") == 0 && argvv[0][1] == NULL) {
-          if (counter < history_size) {
-            for (int i = 0; i < counter; i++) {
-              // struct command cmd;
-              // store_command(history[i].argvv, history[i].filev,
-              //               history[i].in_background, &cmd);
-              printf("%d \n", i);
-              // my_print_cmd(cmd);
-              // free_command(&cmd);
-            }
-          } else {
-            for (int i = 0; i < history_size; i++) {
-              // struct command cmd;
-              // store_command(
-              //     history[(history_iterator + i) % history_size].argvv,
-              //     history[(history_iterator + i) % history_size].filev,
-              //     history[(history_iterator + i) %
-              //     history_size].in_background, &cmd);
-              printf("%d \n", i);
-              // my_print_cmd(cmd);
-              // free_command(&cmd);
-            }
-          }
+    if (strcmp(argvv[0][0], "myhistory") == 0 && argvv[0][1] == NULL) {
+      //run_my_history(argvv, command_history, history_iterator);
+    } else if (strcmp(argvv[0][0], "mycalc") == 0) {
+        if (command_counter != 1) {
+          printf("[ERROR] Command mycalc does not allow redirections\n");
         } else {
-          counter++;
-          if (strcmp(argvv[0][0], "myhistory") == 0) {
-            // change argvv to command
-          }
-          if (strcmp(argvv[0][0], "mycalc") == 0) {
-            if (command_counter != 1) {
-              printf("[ERROR] Command mycalc does not allow redirections\n");
-            } else {
-              mycalc(argvv);
-            }
-          } else {
-            shell_fork_id = fork();
-            if (shell_fork_id == -1) {
-              perror("Error in fork\n");
-            } else if (shell_fork_id == 0) {
-              executeCommand(argvv, in_background, command_counter, filev);
-            } else if (in_background == 0) {
-              wait(NULL);
-            }
-          }
-          // printf("storing command\n");
-          // free_command(&history[history_iterator]);
-          // store_command(argvv, filev, in_background,
-          //               &(history[history_iterator]));
-          // history_iterator = (history_iterator + 1) % history_size;
-          // printf("command stored\n");
+          mycalc(argvv);
         }
+    } else {
+      shell_fork_id = fork();
+      if (shell_fork_id == -1) {
+        perror("Error in fork\n");
+      } else if (shell_fork_id == 0) {
+        executeCommand(argvv, in_background, command_counter, filev);
+      } else if (in_background == 0) {
+        waitpid(shell_fork_id, NULL, 0);
       }
     }
+    // printf("storing command\n");
+
+    store_command(argvv, filev, in_background,
+                   &(history[history_iterator]));
+    //free_command(&history[history_iterator]);
+    
+    history_iterator = (history_iterator + 1) % HISTORY_SIZE;
+    // printf("command stored\n");
+    
+  
+    
   }
 
   return 0;
