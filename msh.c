@@ -387,23 +387,21 @@ void valid_command(char ***argvv, int in_background, char filev[3][64],
     } else {
       run_my_history(argvv, counter, history_iterator);
     }
-  } else {
-    if (strcmp(argvv[0][0], "mycalc") == 0) {
-      if (command_counter != 1 || strcmp(filev[0], "0") != 0 ||
-          strcmp(filev[1], "0") != 0 || strcmp(filev[2], "0") != 0) {
-        printf("[ERROR] Command mycalc does not allow redirections\n");
-      } else {
-        mycalc(argvv);
-      }
+  } else if (strcmp(argvv[0][0], "mycalc") == 0) {
+    if (command_counter != 1 || strcmp(filev[0], "0") != 0 ||
+        strcmp(filev[1], "0") != 0 || strcmp(filev[2], "0") != 0) {
+      printf("[ERROR] Command mycalc does not allow redirections\n");
     } else {
-      start_command(argvv, in_background, filev, command_counter);
+      mycalc(argvv);
     }
-    // printf("storing command\n");
-
-    store_command(argvv, filev, in_background, &(history[history_iterator]));
-    counter++;
-    history_iterator = (history_iterator + 1) % HISTORY_SIZE;
+  } else {
+    start_command(argvv, in_background, filev, command_counter);
   }
+  // printf("storing command\n");
+
+  store_command(argvv, filev, in_background, &(history[history_iterator]));
+  counter++;
+  history_iterator = (history_iterator + 1) % HISTORY_SIZE;
 }
 
 void myhist_no_args(int counter, int history_it) {
@@ -435,11 +433,9 @@ void myhist_no_args(int counter, int history_it) {
 }
 
 void run_my_history(char ***argvv, int counter, int history_it) {
+
   if (argvv[0][1] == NULL) {
     myhist_no_args(counter, history_it);
-    store_command(argvv, filev, 0, &(history[history_iterator]));
-    counter++;
-    history_iterator = (history_iterator + 1) % HISTORY_SIZE;
     return;
   }
 
