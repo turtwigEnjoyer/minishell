@@ -431,11 +431,12 @@ void run_my_history(char ***argvv, int counter, int history_it){
     myhist_no_args(counter, history_it);
     return;
   }
+  
   // Run command at inputted number
   // Command 19 is prev, command 0 is 20 commands ago
   int wrong = 0;
   int num = myatoi(argvv[0][1], &wrong);
-  if (wrong == 1) {
+  if (wrong == 1 || argvv[0][2] != NULL) {
     printf("ERROR: Command structure is: \n myhistory <Num (optional) > \n");
     return;
   }
