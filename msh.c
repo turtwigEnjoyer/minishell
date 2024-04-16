@@ -381,10 +381,16 @@ void valid_command(char ***argvv, int in_background, char filev[3][64],
     return;
 
   if (strcmp(argvv[0][0], "myhistory") == 0) {
-    run_my_history(argvv, counter, history_iterator);
+    if (command_counter != 1 || strcmp(filev[0], "0") != 0 ||
+        strcmp(filev[1], "0") != 0 || strcmp(filev[2], "0") != 0) {
+      printf("[ERROR] Command myhistory does not allow redirections\n");
+    } else {
+      run_my_history(argvv, counter, history_iterator);
+    }
   } else {
     if (strcmp(argvv[0][0], "mycalc") == 0) {
-      if (command_counter != 1) {
+      if (command_counter != 1 || strcmp(filev[0], "0") != 0 ||
+          strcmp(filev[1], "0") != 0 || strcmp(filev[2], "0") != 0) {
         printf("[ERROR] Command mycalc does not allow redirections\n");
       } else {
         mycalc(argvv);
