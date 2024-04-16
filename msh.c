@@ -145,15 +145,17 @@ void my_print_cmd(struct command cmd) {
 }
 
 struct command history[HISTORY_SIZE];
+int history_iterator = 0;
+int counter = 0;          // to know the number of sequences executed
+
 int head = 0;
 int tail = 0;
 int n_elem = 0;
 
 void siginthandler(int param) {
   printf("\n****  Exiting MSH **** \n");
-  for (int i = 0; i < HISTORY_SIZE; i++) {
-    if (history[i].args == NULL)
-      break;
+  for (int i = 0; i < min(HISTORY_SIZE,counter); i++) {
+    
     free_command(&history[i]);
   }
   // signal(SIGINT, siginthandler);
@@ -172,69 +174,6 @@ int is_valid_counter(int command_counter) {
   }
   return 1;
 }
-
-void myhist_no_args(int counter, int history_it) {
-  // Should only print the last commands into STDERR
-
-  int begin = 0;
-
-  if (counter >= HISTORY_SIZE) {
-    // If we have 20 commands in history, the 20th ago command is stored one
-    // after our iterator (We have an array size 20, which will overwrite
-    // commands as it fills up)
-    begin = (history_it + 1) % HISTORY_SIZE;
-    int count = 0;
-    printf("Command %d: ", count);
-    my_print_cmd(history[history_it]);
-    for (int i = begin; i != history_it; i = (i + 1) % HISTORY_SIZE) {
-      count++;
-      printf("Command %d: ", count);
-      my_print_cmd(history[i]);
-    }
-  } else {
-    // if we haven't reached the maximum we print from the first untill the last
-    // stored command
-    for (int i = 0; i < counter; i++) {
-      printf("Command %d: ", i);
-      my_print_cmd(history[i]);
-    }
-  }
-}
-void myhist_args(int it){
-  /*
-  
-  (char ***argvv, int in_background, int num_command,
-                    char filev[3][64], int command_counter)
-  */
- //start_command( history[it].argvv, history[it].in_background, history[it].num_commands, history[it].filev, his)
-}
-void run_my_history(char ***argvv, int counter, int history_it){
-
-  if ( argvv[0][1] == NULL){
-    myhist_no_args(counter, history_it);
-    return;
-  }
-  // Run command at inputted number
-  // Command 19 is prev, command 0 is 20 commands ago
-  int wrong = 0;
-  int num = myatoi(argvv[0][1], &wrong);
-  if (wrong == 1) {
-    printf("ERROR: Command structure is: \n myhistory <Num (optional) > \n");
-  }
-  if (num < 0 || num > HISTORY_SIZE ||
-      (counter < HISTORY_SIZE && counter > num)) {
-    printf("ERROR: Command not found\n");
-  }
-  //Get position of command in history[]
-  int pos = ( history_it - ( num+1) +HISTORY_SIZE)%HISTORY_SIZE;
-  myhist_args(pos);
- 
-}
-
-
-
-
-
 
 void store_command(char ***argvv, char filev[3][64], int in_background,
                    struct command *cmd) {
@@ -290,6 +229,62 @@ void getCompleteCommand(char ***argvv, int num_command) {
 
 //  STUDENT FUNCTIONS
 // Checks possible command redirection errors
+void run_my_history(char ***argvv, int counter, int history_it);
+void mycalc(char ***argvv) {
+  // check we have the right amount of args
+  if (argvv[0][1] == NULL || argvv[0][2] == NULL || argvv[0][3] == 0 ||
+      argvv[0][4] != NULL) {
+    printf("[ERROR] The structure of the command is mycalc <operand_1> "
+           "<add/mul/div> <operand_2>\n");
+    return;
+  }
+  // check the operation
+  if ((strcmp("add", argvv[0][2]) != 0) && (strcmp("mul", argvv[0][2]) != 0) &&
+      (strcmp("div", argvv[0][2]) != 0)) {
+    printf("[ERROR] The structure of the command is mycalc <operand_1> "
+           "<add/mul/div> <operand_2>\n");
+    return;
+  }
+
+  int operand1, operand2, wrong = 0;
+  operand1 = myatoi(argvv[0][1], &wrong);
+  operand2 = myatoi(argvv[0][3], &wrong);
+  char *str = malloc(96);
+  if (wrong == 1) {
+    printf("[ERROR] The structure of the command is mycalc <operand_1> "
+           "<add/mul/div> <operand_2>\n");
+    return;
+  }
+  if (strcmp("mul", argvv[0][2]) == 0) {
+    sprintf(str, "[OK] %d * %d = %d\n", operand1, operand2,
+            operand1 * operand2);
+    write(STDERR_FILENO, str, strlen(str));
+  }
+  if (strcmp("div", argvv[0][2]) == 0) {
+    if (operand2 == 0) {
+      printf("[ERROR] Division by 0 not allowed\n");
+      wrong = 1;
+    } else {
+      sprintf(str, "[OK] %d / %d = %d; Remainder %d\n", operand1, operand2,
+              operand1 / operand2, operand1 % operand2);
+      write(STDERR_FILENO, str, strlen(str));
+    }
+  }
+  if (strcmp("add", argvv[0][2]) == 0) {
+    int acc;
+    acc = atoi(getenv("Acc"));
+    acc += operand1 + operand2;
+    sprintf(str, "[OK] %d + %d = %d; Acc %d\n", operand1, operand2,
+            operand1 + operand2, acc);
+    write(STDERR_FILENO, str, strlen(str));
+    char *s_acc = malloc(16);
+    sprintf(s_acc, "%d", acc);
+    setenv("Acc", s_acc, 1);
+    free(s_acc);
+  }
+  free(str);
+  return;
+}
 
 void is_valid_open_file(char ***argvv, char filev[3][64], int degree,
                         int num_command) {
@@ -365,83 +360,107 @@ void executeCommand(char ***argvv, int in_background, int num_command,
   exit(0); // nothing failed
 }
 
-void start_command(char ***argvv, int in_background, int num_command,
-                   char filev[3][64], int command_counter) {
+void start_command(char ***argvv, int in_background, char filev[3][64], int command_counter) {
 
   int shell_fork_id = fork();
   if (shell_fork_id == -1) {
     perror("Error in fork\n");
   } else if (shell_fork_id == 0) {
     executeCommand(argvv, in_background, command_counter, filev);
-  } else if (in_background == 0) {
-    waitpid(shell_fork_id, NULL, 0);
+  } else if (in_background == 1) {
+    printf("Background process id: %d\n", shell_fork_id);
+    return;
   }
+  waitpid(shell_fork_id, NULL, 0);
 }
 
-void mycalc(char ***argvv) {
-  // check we have the right amount of args
-  if (argvv[0][1] == NULL || argvv[0][2] == NULL || argvv[0][3] == 0 ||
-      argvv[0][4] != NULL) {
-    printf("[ERROR] The structure of the command is mycalc <operand_1> "
-           "<add/mul/div> <operand_2>\n");
-    return;
-  }
-  // check the operation
-  if ((strcmp("add", argvv[0][2]) != 0) && (strcmp("mul", argvv[0][2]) != 0) &&
-      (strcmp("div", argvv[0][2]) != 0)) {
-    printf("[ERROR] The structure of the command is mycalc <operand_1> "
-           "<add/mul/div> <operand_2>\n");
-    return;
-  }
+void valid_command( char ***argvv, int in_background, char filev[3][64], int command_counter){
+  if (is_valid_counter(command_counter) < 0)
+      return;
 
-  int operand1, operand2, wrong = 0;
-  operand1 = myatoi(argvv[0][1], &wrong);
-  operand2 = myatoi(argvv[0][3], &wrong);
-  char *str = malloc(96);
-  if (wrong == 1) {
-    printf("[ERROR] The structure of the command is mycalc <operand_1> "
-           "<add/mul/div> <operand_2>\n");
-    return;
-  }
-  if (strcmp("mul", argvv[0][2]) == 0) {
-    sprintf(str, "[OK] %d * %d = %d\n", operand1, operand2,
-            operand1 * operand2);
-    write(STDERR_FILENO, str, strlen(str));
-  }
-  if (strcmp("div", argvv[0][2]) == 0) {
-    if (operand2 == 0) {
-      printf("[ERROR] Division by 0 not allowed\n");
-      wrong = 1;
+  if (strcmp(argvv[0][0], "myhistory") == 0) {
+    run_my_history(argvv, counter, history_iterator);
+  } else if (strcmp(argvv[0][0], "mycalc") == 0) {
+    if (command_counter != 1) {
+      printf("[ERROR] Command mycalc does not allow redirections\n");
     } else {
-      sprintf(str, "[OK] %d / %d = %d; Remainder %d\n", operand1, operand2,
-              operand1 / operand2, operand1 % operand2);
-      write(STDERR_FILENO, str, strlen(str));
+      mycalc(argvv);
+    }
+  } else {
+    start_command(argvv, in_background, filev, command_counter);
+  }
+  // printf("storing command\n");
+
+  store_command(argvv, filev, in_background, &(history[history_iterator]));
+  counter++;
+  history_iterator = (history_iterator + 1) % HISTORY_SIZE;
+}
+
+
+void myhist_no_args(int counter, int history_it) {
+  // Should only print the last commands into STDERR
+
+  int begin = 0;
+
+  if (counter >= HISTORY_SIZE) {
+    // If we have 20 commands in history, the 20th ago command is stored one
+    // after our iterator (We have an array size 20, which will overwrite
+    // commands as it fills up)
+    begin = (history_it + 1) % HISTORY_SIZE;
+    int count = 0;
+    printf("Command %d: ", count);
+    my_print_cmd(history[history_it]);
+    for (int i = begin; i != history_it; i = (i + 1) % HISTORY_SIZE) {
+      count++;
+      printf("Command %d: ", count);
+      my_print_cmd(history[i]);
+    }
+  } else {
+    // if we haven't reached the maximum we print from the first untill the last
+    // stored command
+    for (int i = 0; i < counter; i++) {
+      printf("Command %d: ", i);
+      my_print_cmd(history[i]);
     }
   }
-  if (strcmp("add", argvv[0][2]) == 0) {
-    int acc;
-    acc = atoi(getenv("Acc"));
-    acc += operand1 + operand2;
-    sprintf(str, "[OK] %d + %d = %d; Acc %d\n", operand1, operand2,
-            operand1 + operand2, acc);
-    write(STDERR_FILENO, str, strlen(str));
-    char *s_acc = malloc(16);
-    sprintf(s_acc, "%d", acc);
-    setenv("Acc", s_acc, 1);
-    free(s_acc);
-  }
-  free(str);
-  return;
 }
+
+void run_my_history(char ***argvv, int counter, int history_it){
+
+  if ( argvv[0][1] == NULL){
+    myhist_no_args(counter, history_it);
+    return;
+  }
+  // Run command at inputted number
+  // Command 19 is prev, command 0 is 20 commands ago
+  int wrong = 0;
+  int num = myatoi(argvv[0][1], &wrong);
+  if (wrong == 1) {
+    printf("ERROR: Command structure is: \n myhistory <Num (optional) > \n");
+    return;
+  }
+  if (num < 0 || num > HISTORY_SIZE ||
+      num >= counter) {
+    printf("ERROR: Command not found\n");
+    return;
+  }
+  //Get position of command in history[]
+  int begin = 0;
+  if( counter > HISTORY_SIZE){
+    begin = (history_it+1)%HISTORY_SIZE;
+  }
+  int pos = (begin + num)%HISTORY_SIZE;
+  valid_command(history[pos].argvv, history[pos].in_background, history[pos].filev, history[pos].num_commands);
+}
+
+
 
 /**
  * Main sheell  Loop
  */
 int main(int argc, char *argv[]) {
   setenv("Acc", "0", 0);
-  int shell_fork_id;
-  int history_iterator = 0; // for queue access
-  int counter = 0;          // to know the number of sequences executed
+  int shell_fork_id; // for queue access
   int wrong = 0;            // to communicate errors between calls
   /**** Do not delete this code.****/
   int end = 0;
@@ -498,28 +517,7 @@ int main(int argc, char *argv[]) {
 
     /************************ STUDENTS CODE ********************************/
 
-    // Print command
-    // print_command(argvv, filev);
-    if (is_valid_counter(command_counter) < 0)
-      continue;
-
-    if (strcmp(argvv[0][0], "myhistory") == 0) {
-      run_my_history(argvv, counter, history_iterator);
-    } else if (strcmp(argvv[0][0], "mycalc") == 0) {
-      if (command_counter != 1) {
-        printf("[ERROR] Command mycalc does not allow redirections\n");
-      } else {
-        mycalc(argvv);
-      }
-    } else {
-      start_command(argvv, in_background, num_commands, filev, command_counter);
-    }
-    // printf("storing command\n");
-
-    store_command(argvv, filev, in_background, &(history[history_iterator]));
-    counter++;
-    history_iterator = (history_iterator + 1) % HISTORY_SIZE;
-    // printf("command stored\n");
+    valid_command( argvv, in_background, filev, command_counter);
   }
 
   return 0;
