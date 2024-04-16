@@ -105,48 +105,48 @@ int myatoi(char *str, int *wrong) {
 
 void my_print_cmd(struct command cmd) {
   if (cmd.argvv[0] == NULL) {
-    fprintf( stderr, "NULL\n");
+    fprintf(stderr, "NULL\n");
     return;
   }
   if (cmd.argvv[0][0] == NULL) {
-    fprintf( stderr, "NULL\n");
+    fprintf(stderr, "NULL\n");
     return;
   }
   int argument = 0;
   while (cmd.argvv[0][argument] != NULL) {
     if (argument != 0) {
-      fprintf( stderr, " ");
+      fprintf(stderr, " ");
     }
-    fprintf( stderr, "%s", cmd.argvv[0][argument]);
+    fprintf(stderr, "%s", cmd.argvv[0][argument]);
     argument++;
   }
   for (int i = 1; i < cmd.num_commands; i++) {
-    fprintf( stderr, " | %s", cmd.argvv[i][0]);
+    fprintf(stderr, " | %s", cmd.argvv[i][0]);
     argument = 1;
     while (cmd.argvv[i][argument] != NULL) {
-      fprintf( stderr, " %s", cmd.argvv[i][argument]);
+      fprintf(stderr, " %s", cmd.argvv[i][argument]);
       argument++;
     }
   }
   if (strcmp(cmd.filev[0], "0") != 0) {
-    fprintf( stderr, " < %s", filev[0]);
+    fprintf(stderr, " < %s", filev[0]);
   }
   if (strcmp(cmd.filev[1], "0") != 0) {
-    fprintf( stderr, " > %s", filev[1]);
+    fprintf(stderr, " > %s", filev[1]);
   }
   if (strcmp(cmd.filev[2], "0") != 0) {
-    fprintf( stderr, " !> %s", filev[2]);
+    fprintf(stderr, " !> %s", filev[2]);
   }
   if (cmd.in_background == 1) {
-    fprintf( stderr, " &");
+    fprintf(stderr, " &");
   }
-  fprintf( stderr, "\n");
+  fprintf(stderr, "\n");
   return;
 }
 
 struct command history[HISTORY_SIZE];
 int history_iterator = 0;
-int counter = 0;          // to know the number of sequences executed
+int counter = 0; // to know the number of sequences executed
 
 int head = 0;
 int tail = 0;
@@ -154,8 +154,8 @@ int n_elem = 0;
 
 void siginthandler(int param) {
   printf("\n****  Exiting MSH **** \n");
-  for (int i = 0; i < min(HISTORY_SIZE,counter); i++) {
-    
+  for (int i = 0; i < min(HISTORY_SIZE, counter); i++) {
+
     free_command(&history[i]);
   }
   // signal(SIGINT, siginthandler);
@@ -360,7 +360,8 @@ void executeCommand(char ***argvv, int in_background, int num_command,
   exit(0); // nothing failed
 }
 
-void start_command(char ***argvv, int in_background, char filev[3][64], int command_counter) {
+void start_command(char ***argvv, int in_background, char filev[3][64],
+                   int command_counter) {
 
   int shell_fork_id = fork();
   if (shell_fork_id == -1) {
@@ -374,28 +375,30 @@ void start_command(char ***argvv, int in_background, char filev[3][64], int comm
   waitpid(shell_fork_id, NULL, 0);
 }
 
-void valid_command( char ***argvv, int in_background, char filev[3][64], int command_counter){
+void valid_command(char ***argvv, int in_background, char filev[3][64],
+                   int command_counter) {
   if (is_valid_counter(command_counter) < 0)
-      return;
+    return;
 
   if (strcmp(argvv[0][0], "myhistory") == 0) {
     run_my_history(argvv, counter, history_iterator);
-  } else if (strcmp(argvv[0][0], "mycalc") == 0) {
-    if (command_counter != 1) {
-      printf("[ERROR] Command mycalc does not allow redirections\n");
-    } else {
-      mycalc(argvv);
-    }
   } else {
-    start_command(argvv, in_background, filev, command_counter);
+    if (strcmp(argvv[0][0], "mycalc") == 0) {
+      if (command_counter != 1) {
+        printf("[ERROR] Command mycalc does not allow redirections\n");
+      } else {
+        mycalc(argvv);
+      }
+    } else {
+      start_command(argvv, in_background, filev, command_counter);
+    }
+    // printf("storing command\n");
+
+    store_command(argvv, filev, in_background, &(history[history_iterator]));
+    counter++;
+    history_iterator = (history_iterator + 1) % HISTORY_SIZE;
   }
-  // printf("storing command\n");
-
-  store_command(argvv, filev, in_background, &(history[history_iterator]));
-  counter++;
-  history_iterator = (history_iterator + 1) % HISTORY_SIZE;
 }
-
 
 void myhist_no_args(int counter, int history_it) {
   // Should only print the last commands into STDERR
@@ -425,13 +428,15 @@ void myhist_no_args(int counter, int history_it) {
   }
 }
 
-void run_my_history(char ***argvv, int counter, int history_it){
-
-  if ( argvv[0][1] == NULL){
+void run_my_history(char ***argvv, int counter, int history_it) {
+  if (argvv[0][1] == NULL) {
     myhist_no_args(counter, history_it);
+    store_command(argvv, filev, 0, &(history[history_iterator]));
+    counter++;
+    history_iterator = (history_iterator + 1) % HISTORY_SIZE;
     return;
   }
-  
+
   // Run command at inputted number
   // Command 19 is prev, command 0 is 20 commands ago
   int wrong = 0;
@@ -440,23 +445,21 @@ void run_my_history(char ***argvv, int counter, int history_it){
     printf("ERROR: Command structure is: \n myhistory <Num (optional) > \n");
     return;
   }
-  if (num < 0 || num > HISTORY_SIZE ||
-      num >= counter) {
+  if (num < 0 || num > HISTORY_SIZE || num >= counter) {
     printf("ERROR: Command not found\n");
     return;
   }
-  //Get position of command in history[]
+  // Get position of command in history[]
   int begin = 0;
-  if( counter > HISTORY_SIZE){
-    begin = (history_it+1)%HISTORY_SIZE;
+  if (counter > HISTORY_SIZE) {
+    begin = (history_it + 1) % HISTORY_SIZE;
   }
-  int pos = (begin + num)%HISTORY_SIZE;
+  int pos = (begin + num) % HISTORY_SIZE;
   char newFilev[3][64];
-  fprintf( stderr, "Running command %d\n", num);
-  valid_command(history[pos].argvv, history[pos].in_background, history[pos].filev, history[pos].num_commands);
+  fprintf(stderr, "Running command %d\n", num);
+  valid_command(history[pos].argvv, history[pos].in_background,
+                history[pos].filev, history[pos].num_commands);
 }
-
-
 
 /**
  * Main sheell  Loop
@@ -464,7 +467,7 @@ void run_my_history(char ***argvv, int counter, int history_it){
 int main(int argc, char *argv[]) {
   setenv("Acc", "0", 0);
   int shell_fork_id; // for queue access
-  int wrong = 0;            // to communicate errors between calls
+  int wrong = 0;     // to communicate errors between calls
   /**** Do not delete this code.****/
   int end = 0;
   int executed_cmd_lines = -1;
@@ -520,7 +523,7 @@ int main(int argc, char *argv[]) {
 
     /************************ STUDENTS CODE ********************************/
 
-    valid_command( argvv, in_background, filev, command_counter);
+    valid_command(argvv, in_background, filev, command_counter);
   }
 
   return 0;
