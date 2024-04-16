@@ -147,7 +147,12 @@ void myhist_no_args(int counter, int history_it){
   }
 }
 void myhist_args(int it){
-
+  /*
+  
+  (char ***argvv, int in_background, int num_command,
+                    char filev[3][64], int command_counter)
+  */
+ //start_command( history[it].argvv, history[it].in_background, history[it].num_commands, history[it].filev, his)
 }
 void run_my_history(char ***argvv, int counter, int history_it){
 
@@ -162,12 +167,12 @@ void run_my_history(char ***argvv, int counter, int history_it){
   if( wrong == 1){
     printf("ERROR: Command structure is: \n myhistory <Num (optional) > \n");
   }
-  if( num < 0 || num > HISTORY_SIZE || ( counter < HISTORY_SIZE && counter > num) ){
+  if( num < 0 || num >= HISTORY_SIZE || ( counter < HISTORY_SIZE && counter > num) ){
     printf("ERROR: Command not found\n");
   }
   //Get position of command in history[]
-  //int pos = (history_it - (HISTORY_SIZE-1) + num)%HISTORY_SIZE
-  //myhist_args(it);
+  int pos = ( history_it - ( num+1) +HISTORY_SIZE)%HISTORY_SIZE;
+  myhist_args(pos);
  
 }
 
