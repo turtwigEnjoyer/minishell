@@ -17,7 +17,7 @@
 #include <wait.h>
 
 #define MAX_COMMANDS 8
-#define HISTORY_SIZE 5
+#define HISTORY_SIZE 20
 
 // files in case of redirection
 char filev[3][64];
@@ -183,17 +183,21 @@ void myhist_no_args(int counter, int history_it) {
     // after our iterator (We have an array size 20, which will overwrite
     // commands as it fills up)
     begin = (history_it + 1) % HISTORY_SIZE;
-  }
-  int count = 0;
-  printf("Command %d: ", count);
-  my_print_cmd(history[history_it]);
-  printf("\n");
-  for (int i = begin; i != history_it; i = (i + 1) % HISTORY_SIZE) {
-
-    count++;
+    int count = 0;
     printf("Command %d: ", count);
-    my_print_cmd(history[i]);
-    printf("\n");
+    my_print_cmd(history[history_it]);
+    for (int i = begin; i != history_it; i = (i + 1) % HISTORY_SIZE) {
+      count++;
+      printf("Command %d: ", count);
+      my_print_cmd(history[i]);
+    }
+  } else {
+    // if we haven't reached the maximum we print from the first untill the last
+    // stored command
+    for (int i = 0; i < counter; i++) {
+      printf("Command %d: ", i);
+      my_print_cmd(history[i]);
+    }
   }
 }
 void myhist_args(int it) {}
