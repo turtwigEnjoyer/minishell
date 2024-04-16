@@ -105,42 +105,42 @@ int myatoi(char *str, int *wrong) {
 
 void my_print_cmd(struct command cmd) {
   if (cmd.argvv[0] == NULL) {
-    printf("NULL\n");
+    fprintf( stderr, "NULL\n");
     return;
   }
   if (cmd.argvv[0][0] == NULL) {
-    printf("NULL\n");
+    fprintf( stderr, "NULL\n");
     return;
   }
   int argument = 0;
   while (cmd.argvv[0][argument] != NULL) {
     if (argument != 0) {
-      printf(" ");
+      fprintf( stderr, " ");
     }
-    printf("%s", cmd.argvv[0][argument]);
+    fprintf( stderr, "%s", cmd.argvv[0][argument]);
     argument++;
   }
   for (int i = 1; i < cmd.num_commands; i++) {
-    printf(" | %s", cmd.argvv[i][0]);
+    fprintf( stderr, " | %s", cmd.argvv[i][0]);
     argument = 1;
     while (cmd.argvv[i][argument] != NULL) {
-      printf(" %s", cmd.argvv[i][argument]);
+      fprintf( stderr, " %s", cmd.argvv[i][argument]);
       argument++;
     }
   }
   if (strcmp(cmd.filev[0], "0") != 0) {
-    printf(" < %s", filev[0]);
+    fprintf( stderr, " < %s", filev[0]);
   }
   if (strcmp(cmd.filev[1], "0") != 0) {
-    printf(" > %s", filev[1]);
+    fprintf( stderr, " > %s", filev[1]);
   }
   if (strcmp(cmd.filev[2], "0") != 0) {
-    printf(" !> %s", filev[2]);
+    fprintf( stderr, " !> %s", filev[2]);
   }
   if (cmd.in_background == 1) {
-    printf(" &");
+    fprintf( stderr, " &");
   }
-  printf("\n");
+  fprintf( stderr, "\n");
   return;
 }
 
@@ -408,18 +408,18 @@ void myhist_no_args(int counter, int history_it) {
     // commands as it fills up)
     begin = (history_it + 1) % HISTORY_SIZE;
     int count = 0;
-    printf("Command %d: ", count);
+    fprintf(stderr, "%d ", count);
     my_print_cmd(history[history_it]);
     for (int i = begin; i != history_it; i = (i + 1) % HISTORY_SIZE) {
       count++;
-      printf("Command %d: ", count);
+      fprintf(stderr, "%d ", count);
       my_print_cmd(history[i]);
     }
   } else {
     // if we haven't reached the maximum we print from the first untill the last
     // stored command
     for (int i = 0; i < counter; i++) {
-      printf("Command %d: ", i);
+      fprintf(stderr, "%d ", i);
       my_print_cmd(history[i]);
     }
   }
@@ -450,6 +450,8 @@ void run_my_history(char ***argvv, int counter, int history_it){
     begin = (history_it+1)%HISTORY_SIZE;
   }
   int pos = (begin + num)%HISTORY_SIZE;
+  char newFilev[3][64];
+  fprintf( stderr, "Running command %d\n", num);
   valid_command(history[pos].argvv, history[pos].in_background, history[pos].filev, history[pos].num_commands);
 }
 
